@@ -6,18 +6,18 @@ vai direto para o `sudo`: não entra no chat, no contexto do modelo nem nos logs
 do plugin.
 
 ```text
-╭─ Autenticação sudo ─────────────────────────────────────────╮
+╭─ Sudo authentication ───────────────────────────────────────╮
 │                                                             │
-│  O OpenCode quer executar como root:                        │
+│  OpenCode wants to run as root:                             │
 │                                                             │
 │  sudo systemctl restart docker.service                      │
 │                                                             │
-│  Local:  ~/projetos/meu-projeto                             │
-│  Sessão: minha-sessão · usuário@host                        │
+│  Directory: ~/projetos/meu-projeto                          │
+│  Session: minha-sessão · usuário@host                       │
 │                                                             │
-│  Senha: ••••••••••                                          │
+│  Password: ••••••••••                                       │
 │                                                             │
-│  enter autorizar    esc cancelar                            │
+│  enter authorize   esc cancel                               │
 ╰─────────────────────────────────────────────────────────────╯
 ```
 
@@ -123,8 +123,8 @@ digite a senha depois de `/sudo `** — use o campo da janela.
 falha em ~1s com:
 
 ```text
-sudo precisa de autenticação interativa no TUI do OpenCode. Rode o OpenCode no
-terminal (não `opencode run`) ou configure NOPASSWD para comandos específicos.
+sudo requires interactive authentication in the OpenCode TUI. Run OpenCode in
+a terminal (not `opencode run`), or configure NOPASSWD for specific commands.
 ```
 
 Se você precisa de automação headless, a alternativa é uma lista curta de
@@ -217,8 +217,8 @@ Teste manual completo:
 1. `opencode plugin list` mostra `opencode-sudo`.
 2. Peça ao agente `sudo -k true`; a janela abre com o comando e o campo `•••`.
 3. Digite a senha; o comando roda e o agente recebe o resultado.
-4. Senha errada: a janela mostra “senha incorreta” e deixa tentar de novo.
-5. `esc`: o comando falha com “cancelado”.
+4. Senha errada: a janela mostra “incorrect password” e deixa tentar de novo.
+5. `esc`: o comando falha com “cancelled by user”.
 6. `/sudo lock`: o cache zera; o próximo sudo pede de novo.
 7. `/sudo off`: o comando é negado antes de executar.
 8. `opencode run "rode sudo -n true"`: falha rápido com a mensagem de sem TUI.
