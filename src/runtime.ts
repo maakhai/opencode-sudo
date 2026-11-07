@@ -80,15 +80,15 @@ def main():
                 break
             data += chunk
             if len(data) > ${MAX_REQUEST_BYTES}:
-                fail("resposta grande demais")
+                fail("response too large")
         if not data:
-            fail("sem resposta do OpenCode")
+            fail("no response from OpenCode")
         response = json.loads(data.decode("utf-8"))
         if response.get("ok") is not True:
-            fail(str(response.get("error") or "autenticação recusada"))
+            fail(str(response.get("error") or "authentication denied"))
         value = response.get("value")
         if not isinstance(value, str):
-            fail("resposta inválida")
+            fail("invalid response")
         sys.stdout.buffer.write((value + "\\n").encode("utf-8"))
         sys.stdout.buffer.flush()
     except SystemExit:
@@ -138,7 +138,7 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
   const askpassPath = path.join(dir, "askpass.py")
 
   if (socketPath.length > 100) {
-    throw new Error(`opencode-sudo: caminho do socket longo demais: ${socketPath}`)
+    throw new Error(`opencode-sudo: socket path too long: ${socketPath}`)
   }
 
   fs.mkdirSync(binDir, { recursive: true, mode: 0o700 })
@@ -179,7 +179,7 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       if (handled) return
       buffer += chunk
       if (buffer.length > MAX_REQUEST_BYTES) {
-        finish({ ok: false, error: "pedido grande demais" })
+        finish({ ok: false, error: "request too large" })
         return
       }
       const newline = buffer.indexOf("\n")
@@ -189,7 +189,7 @@ export async function createRuntime(options: RuntimeOptions): Promise<Runtime> {
       try {
         parsed = JSON.parse(line)
       } catch {
-        finish({ ok: false, error: "pedido inválido" })
+        finish({ ok: false, error: "invalid request" })
         return
       }
       const request = normalizeRequest(parsed)

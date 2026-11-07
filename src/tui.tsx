@@ -26,7 +26,7 @@ function mask(value: string) {
 
 function formatTime(timestamp: number) {
   try {
-    return new Date(timestamp).toLocaleTimeString("pt-BR", {
+    return new Date(timestamp).toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     })
@@ -36,7 +36,7 @@ function formatTime(timestamp: number) {
 }
 
 function sessionLabel(ctx: Context, sessionID: string) {
-  if (!sessionID) return "sessão desconhecida"
+  if (!sessionID) return "unknown session"
   try {
     const session = ctx.data.session.get(sessionID)
     const title = (session as { title?: unknown } | undefined)?.title
@@ -48,17 +48,17 @@ function sessionLabel(ctx: Context, sessionID: string) {
 
 function statusMessage(status: SudoStatus) {
   const lines = [
-    `política: ${status.policy}`,
-    `TUI: ${status.tui ? "conectado" : "desconectado"}`,
+    `policy: ${status.policy}`,
+    `TUI: ${status.tui ? "connected" : "disconnected"}`,
     `cache: ${
       status.cached && status.expiresAt > 0
-        ? `desbloqueado até ${formatTime(status.expiresAt)}`
-        : "bloqueado"
+        ? `unlocked until ${formatTime(status.expiresAt)}`
+        : "locked"
     }`,
-    `pedidos pendentes: ${status.pending}`,
-    `instância: ${status.runtime.split("/").pop() ?? status.runtime}`,
+    `pending requests: ${status.pending}`,
+    `instance: ${status.runtime.split("/").pop() ?? status.runtime}`,
   ]
-  if (status.lastError) lines.push(`último erro: ${status.lastError}`)
+  if (status.lastError) lines.push(`last error: ${status.lastError}`)
   return lines.join("\n")
 }
 
@@ -76,7 +76,7 @@ function SudoDialog(props: {
   const timeout = Number((props.ctx.options as Record<string, unknown>).timeout ?? DEFAULT_TIMEOUT)
   const timer = setTimeout(
     () => {
-      if (!busy()) props.onCancel("Tempo esgotado.")
+      if (!busy()) props.onCancel("Timed out.")
     },
     (Math.max(5, Number.isFinite(timeout) ? timeout : DEFAULT_TIMEOUT) + 2) * 1000,
   )
@@ -85,7 +85,7 @@ function SudoDialog(props: {
     if (busy() || disposed) return
     const password = value()
     if (!password) {
-      setError("Digite a senha.")
+      setError("Enter your password.")
       return
     }
     setBusy(true)
@@ -101,19 +101,19 @@ function SudoDialog(props: {
         return
       }
       if (result.reason === "invalid") {
-        setError("Senha incorreta. Tente novamente.")
+        setError("Incorrect password. Try again.")
         setValue("")
         return
       }
       if (result.reason === "empty") {
-        setError("Digite a senha.")
+        setError("Enter your password.")
         return
       }
       if (result.reason === "expired") {
-        props.onCancel("A solicitação expirou.")
+        props.onCancel("The request expired.")
         return
       }
-      setError(result.reason ? `Falha ao autorizar: ${result.reason}` : "Falha ao autorizar.")
+      setError(result.reason ? `Authorization failed: ${result.reason}` : "Authorization failed.")
     } catch (cause) {
       if (!disposed) setError(errorMessage(cause))
     } finally {
@@ -142,7 +142,7 @@ function SudoDialog(props: {
       if (key.name === "escape" || (key.ctrl && key.name === "c")) {
         key.preventDefault?.()
         key.stopPropagation?.()
-        props.onCancel("Cancelado pelo usuário.")
+        props.onCancel("Cancelled by user.")
         return
       }
       if (key.name === "return" || key.name === "enter") {
@@ -210,9 +210,9 @@ function SudoDialog(props: {
   return (
     <box flexDirection="column" paddingLeft={2} paddingRight={2} gap={1}>
       <text fg={theme.text.base}>
-        <b>Autenticação sudo</b>
+        <b>Sudo authentication</b>
       </text>
-      <text fg={theme.text.muted}>O OpenCode quer executar como root:</text>
+      <text fg={theme.text.muted}>OpenCode wants to run as root:</text>
 
       <box paddingLeft={1} paddingRight={1} marginTop={1}>
         <text fg={theme.text.base}>
@@ -223,18 +223,18 @@ function SudoDialog(props: {
       <Show
         when={props.request.contextCommand && props.request.contextCommand !== props.request.command}
       >
-        <text fg={theme.text.faint}>Contexto: {props.request.contextCommand}</text>
+        <text fg={theme.text.faint}>Context: {props.request.contextCommand}</text>
       </Show>
 
-      <text fg={theme.text.muted}>Local: {props.request.cwd || "—"}</text>
+      <text fg={theme.text.muted}>Directory: {props.request.cwd || "—"}</text>
       <text fg={theme.text.muted}>
-        Sessão: {sessionLabel(props.ctx, props.request.sessionID)} · {props.request.user}@
+        Session: {sessionLabel(props.ctx, props.request.sessionID)} · {props.request.user}@
         {props.request.host}
       </text>
 
       <box flexDirection="row" gap={1} marginTop={1}>
-        <text fg={theme.text.base}>{props.request.prompt || "Senha:"}</text>
-        <Show when={value()} fallback={<text fg={theme.text.faint}>digite a senha</text>}>
+        <text fg={theme.text.base}>{props.request.prompt || "Password:"}</text>
+        <Show when={value()} fallback={<text fg={theme.text.faint}>enter your password</text>}>
           <text fg={theme.text.base}>{mask(value())}</text>
         </Show>
         <text fg={theme.text.base}>▏</text>
@@ -245,10 +245,10 @@ function SudoDialog(props: {
       </Show>
 
       <Show when={busy()}>
-        <text fg={theme.text.muted}>verificando...</text>
+        <text fg={theme.text.muted}>verifying...</text>
       </Show>
 
-      <text fg={theme.text.faint}>enter autorizar   esc cancelar</text>
+      <text fg={theme.text.faint}>enter authorize   esc cancel</text>
     </box>
   )
 }
@@ -309,7 +309,7 @@ export default Plugin.define({
             />
           ),
           () => {
-            if (!settled) close("cancel", "Autenticação sudo cancelada.")
+            if (!settled) close("cancel", "Sudo authentication cancelled.")
           },
         )
       } catch (cause) {
@@ -386,7 +386,7 @@ export default Plugin.define({
         {
           id: "opencode-sudo.command",
           title: "Sudo",
-          description: "Status, política e bloqueio do sudo",
+          description: "Sudo status, policy, and lock",
           group: "Sudo",
           palette: true,
           bind: false,
@@ -412,11 +412,11 @@ export default Plugin.define({
               }
               if (arg === "lock") {
                 await client().lock({})
-                ctx.ui.toast.show({ message: "sudo bloqueado", variant: "success" })
+                ctx.ui.toast.show({ message: "sudo locked", variant: "success" })
                 return
               }
               ctx.ui.toast.show({
-                message: "uso: /sudo on|ask|off|lock|status",
+                message: "usage: /sudo on|ask|off|lock|status",
                 variant: "info",
               })
             } catch (cause) {

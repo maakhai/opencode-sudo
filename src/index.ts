@@ -252,21 +252,21 @@ async function handleAskpass(
     if (state.validation && state.validation.nonce === request.validate) {
       return { ok: true, value: state.validation.password }
     }
-    return { ok: false, error: "validação expirada" }
+    return { ok: false, error: "validation expired" }
   }
 
   if (!hasTui(shared)) {
-    state.lastError = "sem TUI conectado"
+    state.lastError = "no TUI connected"
     return {
       ok: false,
       error:
-        "sudo precisa de autenticação interativa no TUI do OpenCode. Rode `opencode` no terminal (não `opencode run`) ou configure NOPASSWD para comandos específicos.",
+        "sudo requires interactive authentication in the OpenCode TUI. Run `opencode` in a terminal (not `opencode run`), or configure NOPASSWD for specific commands.",
     }
   }
 
   const policy = resolvePolicy(options.policy)
   if (policy === "off") {
-    return { ok: false, error: "sudo está desativado no OpenCode (`/sudo on` para reativar)." }
+    return { ok: false, error: "sudo is disabled in OpenCode (use `/sudo on` to enable it)." }
   }
 
   const argv = readArgv(request.ppid)
@@ -299,17 +299,17 @@ async function handleAskpass(
     }
 
     const onAbort = () => {
-      finish({ ok: false, error: "comando encerrado" })
+      finish({ ok: false, error: "command ended" })
     }
 
     if (signal.aborted) {
-      finish({ ok: false, error: "comando encerrado" })
+      finish({ ok: false, error: "command ended" })
       return
     }
 
     signal.addEventListener("abort", onAbort, { once: true })
     timer = setTimeout(
-      () => finish({ ok: false, error: "tempo esgotado" }),
+      () => finish({ ok: false, error: "timed out" }),
       Math.max(5, options.timeout) * 1000,
     )
     state.pending.set(id, { request: pendingRequest, finish })
@@ -376,7 +376,7 @@ async function getShared(options: Config): Promise<Shared> {
     onRequest: (request, signal) =>
       shared
         ? handleAskpass(shared, request, signal)
-        : Promise.resolve({ ok: false, error: "plugin iniciando" }),
+        : Promise.resolve({ ok: false, error: "plugin starting" }),
   })
 
   shared = { refs: 1, runtime, options, state, emits }
@@ -392,7 +392,7 @@ async function releaseShared(shared: Shared) {
   if (store[SHARED_KEY] === shared) delete store[SHARED_KEY]
 
   for (const pending of Array.from(shared.state.pending.values())) {
-    pending.finish({ ok: false, error: "plugin encerrado" })
+    pending.finish({ ok: false, error: "plugin stopped" })
   }
   shared.state.pending.clear()
   shared.state.cache = undefined
@@ -430,7 +430,7 @@ function createHandlers(shared: Shared) {
 
       const valid = await validatePassword(shared, password, call.signal)
       if (!valid) {
-        shared.state.lastError = "senha incorreta"
+        shared.state.lastError = "incorrect password"
         audit(shared, { event: "invalid", requestID, command: pending.request.command })
         return { ok: false, reason: "invalid" }
       }
@@ -458,8 +458,8 @@ function createHandlers(shared: Shared) {
       const requestID = typeof value.requestID === "string" ? value.requestID : ""
       const pending = shared.state.pending.get(requestID)
       if (!pending) return { ok: false }
-      pending.finish({ ok: false, error: "cancelado pelo usuário" })
-      shared.state.lastError = "cancelado"
+      pending.finish({ ok: false, error: "cancelled by user" })
+      shared.state.lastError = "cancelled"
       audit(shared, { event: "cancel", requestID, command: pending.request.command })
       return { ok: true }
     },
@@ -552,13 +552,13 @@ export default Plugin.define({
         const policy = resolvePolicy(shared.options.policy)
         if (policy === "off") {
           event.effect = "deny"
-          event.message = "sudo está desativado no OpenCode. Rode `/sudo on` para reativar."
+          event.message = "sudo is disabled in OpenCode. Use `/sudo on` to enable it."
           return
         }
         if (!hasTui(shared)) {
           event.effect = "deny"
           event.message =
-            "sudo precisa de autenticação interativa no TUI do OpenCode. Rode o OpenCode no terminal (não `opencode run`) ou configure NOPASSWD para comandos específicos."
+            "sudo requires interactive authentication in the OpenCode TUI. Run OpenCode in a terminal (not `opencode run`), or configure NOPASSWD for specific commands."
         }
       })
       disposers.push(() => permission.dispose())
@@ -577,7 +577,7 @@ export default Plugin.define({
         const text = safeStringify(event.status === "completed" ? event.result : event.error)
         if (/Authentication failed|incorrect password|maximum \d+ incorrect/i.test(text)) {
           shared.state.cache = undefined
-          shared.state.lastError = "falha de autenticação; desbloqueie novamente"
+          shared.state.lastError = "authentication failed; unlock again"
           audit(shared, { event: "auth-failed", sessionID: event.sessionID })
         }
       })
