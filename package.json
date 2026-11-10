@@ -1,6 +1,6 @@
 {
   "name": "opencode-sudo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "OpenCode plugin that asks for the sudo password in a TUI modal, showing the exact command before it runs.",
   "type": "module",
@@ -20,7 +20,8 @@
   },
   "files": [
     "src",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node --test test/*.test.js"
