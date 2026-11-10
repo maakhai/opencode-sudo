@@ -20,8 +20,11 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
+const MASK_LIMIT = 32
+
 function mask(value: string) {
-  return "•".repeat(Array.from(value).length)
+  const length = Array.from(value).length
+  return `${"•".repeat(Math.min(length, MASK_LIMIT))}${length > MASK_LIMIT ? "…" : ""}`
 }
 
 function formatTime(timestamp: number) {
@@ -62,6 +65,48 @@ function statusMessage(status: SudoStatus) {
   return lines.join("\n")
 }
 
+type DialogTheme = ReturnType<Context["theme"]["surface"]>
+
+function FooterAction(props: {
+  theme: DialogTheme
+  keyLabel: string
+  label: string
+  disabled?: boolean
+  onPress: () => void
+}) {
+  const [hovered, setHovered] = createSignal(false)
+  const theme = props.theme
+
+  return (
+    <box
+      flexDirection="row"
+      gap={1}
+      paddingLeft={1}
+      paddingRight={1}
+      onMouseOver={() => setHovered(true)}
+      onMouseOut={() => setHovered(false)}
+      onMouseUp={() => {
+        if (!props.disabled) props.onPress()
+      }}
+    >
+      <text fg={props.disabled ? theme.text.faint : theme.text.base}>
+        <b>[{props.keyLabel}]</b>
+      </text>
+      <text
+        fg={
+          props.disabled
+            ? theme.text.faint
+            : hovered()
+              ? theme.text.base
+              : theme.text.muted
+        }
+      >
+        {props.label}
+      </text>
+    </box>
+  )
+}
+
 function SudoDialog(props: {
   ctx: Context
   request: SudoRequest
@@ -72,6 +117,24 @@ function SudoDialog(props: {
   const [error, setError] = createSignal<string | undefined>(undefined)
   const [busy, setBusy] = createSignal(false)
   let disposed = false
+
+  const theme = props.ctx.theme.surface("dialog")
+  const displayPath = (value: string) => {
+    if (!value) return "—"
+    try {
+      return props.ctx.ui.format.path(value) || value
+    } catch {
+      return value
+    }
+  }
+  const clearError = () => {
+    if (error()) setError(undefined)
+  }
+  const contextCommand = props.request.contextCommand.trim()
+  const showContext =
+    contextCommand !== "" &&
+    contextCommand !== props.request.command &&
+    !/^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:\S*\/)?sudo(?:\s|$)/.test(contextCommand)
 
   const timeout = Number((props.ctx.options as Record<string, unknown>).timeout ?? DEFAULT_TIMEOUT)
   const timer = setTimeout(
@@ -154,6 +217,7 @@ function SudoDialog(props: {
       if (key.name === "backspace" || key.name === "delete") {
         key.preventDefault?.()
         key.stopPropagation?.()
+        clearError()
         setValue((current) => current.slice(0, -1))
         return
       }
@@ -165,6 +229,7 @@ function SudoDialog(props: {
       if (key.ctrl && key.name === "u") {
         key.preventDefault?.()
         key.stopPropagation?.()
+        clearError()
         setValue("")
         return
       }
@@ -175,6 +240,7 @@ function SudoDialog(props: {
       if (code < 32 || code === 127) return
       key.preventDefault?.()
       key.stopPropagation?.()
+      clearError()
       setValue((current) => current + sequence)
     }
 
@@ -189,6 +255,7 @@ function SudoDialog(props: {
         if (!text) return
         event.preventDefault?.()
         event.stopPropagation?.()
+        clearError()
         setValue((current) => current + text)
       } catch {
         // ignore malformed paste data
@@ -205,50 +272,101 @@ function SudoDialog(props: {
     })
   })
 
-  const theme = props.ctx.theme
-
   return (
-    <box flexDirection="column" paddingLeft={2} paddingRight={2} gap={1}>
+    <box
+      flexDirection="column"
+      border={true}
+      borderStyle="rounded"
+      borderColor={theme.border.base}
+      paddingLeft={2}
+      paddingRight={2}
+      paddingTop={1}
+      paddingBottom={1}
+      gap={0}
+    >
       <text fg={theme.text.base}>
-        <b>Sudo authentication</b>
+        <b>OpenCode wants to run as root.</b>
       </text>
-      <text fg={theme.text.muted}>OpenCode wants to run as root:</text>
 
-      <box paddingLeft={1} paddingRight={1} marginTop={1}>
-        <text fg={theme.text.base}>
-          <b>{props.request.command}</b>
-        </text>
+      <box flexDirection="column" marginTop={1}>
+        <text fg={theme.text.faint}>COMMAND</text>
+        <box
+          border={["left"]}
+          borderColor={theme.text.action.primary.base}
+          backgroundColor={theme.background.raised.base}
+          paddingLeft={2}
+          paddingRight={1}
+          marginTop={1}
+        >
+          <text fg={theme.text.base} wrapMode="word">
+            <b>{props.request.command}</b>
+          </text>
+        </box>
+        <Show when={showContext}>
+          <text fg={theme.text.faint} wrapMode="word" marginTop={1}>
+            via {props.request.contextCommand}
+          </text>
+        </Show>
       </box>
 
-      <Show
-        when={props.request.contextCommand && props.request.contextCommand !== props.request.command}
-      >
-        <text fg={theme.text.faint}>Context: {props.request.contextCommand}</text>
-      </Show>
-
-      <text fg={theme.text.muted}>Directory: {props.request.cwd || "—"}</text>
-      <text fg={theme.text.muted}>
-        Session: {sessionLabel(props.ctx, props.request.sessionID)} · {props.request.user}@
-        {props.request.host}
-      </text>
+      <box flexDirection="column" marginTop={1}>
+        <box flexDirection="row" gap={2}>
+          <box width={10} flexShrink={0}>
+            <text fg={theme.text.faint}>Directory</text>
+          </box>
+          <text fg={theme.text.muted} wrapMode="word">
+            {displayPath(props.request.cwd)}
+          </text>
+        </box>
+        <box flexDirection="row" gap={2}>
+          <box width={10} flexShrink={0}>
+            <text fg={theme.text.faint}>Session</text>
+          </box>
+          <text fg={theme.text.muted} wrapMode="word">
+            {sessionLabel(props.ctx, props.request.sessionID)} · {props.request.user}@
+            {props.request.host}
+          </text>
+        </box>
+      </box>
 
       <box flexDirection="row" gap={1} marginTop={1}>
         <text fg={theme.text.base}>{props.request.prompt || "Password:"}</text>
-        <Show when={value()} fallback={<text fg={theme.text.faint}>enter your password</text>}>
+        <Show
+          when={value()}
+          fallback={<text fg={theme.text.faint}>enter your password</text>}
+        >
           <text fg={theme.text.base}>{mask(value())}</text>
         </Show>
         <text fg={theme.text.base}>▏</text>
       </box>
 
-      <Show when={error()}>
-        <text fg={theme.text.feedback.error.base}>{error()}</text>
-      </Show>
+      <box minHeight={1} marginTop={1}>
+        <Show when={error()}>
+          <text fg={theme.text.feedback.error.base} wrapMode="word">
+            ✗ {error()}
+          </text>
+        </Show>
+        <Show when={!error() && busy()}>
+          <text fg={theme.text.feedback.info.base}>⋯ Verifying password…</text>
+        </Show>
+      </box>
 
-      <Show when={busy()}>
-        <text fg={theme.text.muted}>verifying...</text>
-      </Show>
-
-      <text fg={theme.text.faint}>enter authorize   esc cancel</text>
+      <box flexDirection="row" gap={2} marginTop={1} flexShrink={0}>
+        <FooterAction
+          theme={theme}
+          keyLabel="enter"
+          label="Authorize"
+          disabled={busy()}
+          onPress={() => void submit()}
+        />
+        <FooterAction
+          theme={theme}
+          keyLabel="esc"
+          label="Cancel"
+          disabled={busy()}
+          onPress={() => props.onCancel("Cancelled by user.")}
+        />
+      </box>
     </box>
   )
 }
