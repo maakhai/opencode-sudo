@@ -1,18 +1,26 @@
 # opencode-sudo
 
+**Version 0.2.0** · [Changelog](CHANGELOG.md)
+
 OpenCode v2 plugin that asks for the `sudo` password in a TUI window, showing
 exactly which command will run. The password goes straight to sudo — it never
 enters the chat, the model context, or the plugin logs.
 
 ```text
-╭─ Sudo authentication ───────────────────────────────────────╮
-│ OpenCode wants to run as root:                              │
+╭─────────────────────────────────────────────────────────────╮
 │                                                             │
-│ sudo systemctl restart docker.service                       │
-│ Directory: ~/projects/my-project · my-session · user@host   │
-│ Password: ••••••••••                                        │
+│  OpenCode wants to run as root.                             │
 │                                                             │
-│ enter authorize   esc cancel                                │
+│  COMMAND                                                    │
+│  ▌ sudo systemctl restart docker.service                    │
+│                                                             │
+│  Directory  ~/projects/my-project                           │
+│  Session    my-session · user@host                          │
+│                                                             │
+│  [sudo] password for user: ••••••••••▏                      │
+│                                                             │
+│  [enter] Authorize    [esc] Cancel                          │
+│                                                             │
 ╰─────────────────────────────────────────────────────────────╯
 ```
 
@@ -57,10 +65,14 @@ To set options, use the object form described in [Configuration](#configuration)
 
 ## Usage
 
-Use `sudo` normally. On the first command that needs a password, the window
-opens with the exact command. To test safely:
+Use `sudo` normally. On the first command that needs a password, the framed
+window opens with the exact command. Authorize with `enter` or by clicking
+**Authorize**; cancel with `esc` or **Cancel**. To test safely:
 
 > Ask the agent to run `sudo -k true`.
+
+When sudo runs inside a script, the window also shows the outer command (for
+example `via make install`) below the real sudo command.
 
 ### TUI commands
 
@@ -139,10 +151,12 @@ policy precedence, the state file, and redaction.
 Manual check:
 
 1. `opencode plugin list` shows `opencode-sudo`.
-2. Ask the agent to run `sudo -k true`; the window shows the command and a
-   masked field. A wrong password shows “incorrect password”; the right one
-   runs the command.
-3. `/sudo lock` forces a new prompt; `/sudo off` denies the next command;
+2. Ask the agent to run `sudo -k true`; the framed window shows the command and
+   a masked field. Authorize with `enter` or the **Authorize** button.
+3. A wrong password shows “incorrect password”; typing clears it. The right
+   password runs the command.
+4. `esc` or **Cancel** fails the command with “cancelled by user”.
+   `/sudo lock` forces a new prompt; `/sudo off` denies the next command;
    `opencode run "sudo -n true"` fails fast without a TUI.
 
 ## Layout
@@ -150,10 +164,11 @@ Manual check:
 | Path | Role |
 | --- | --- |
 | `src/index.ts` | Server: singleton, hooks, RPC handlers |
-| `src/tui.tsx` | Masked modal, polling, `/sudo` |
+| `src/tui.tsx` | Framed masked modal, clickable actions, polling, `/sudo` |
 | `src/rpc.ts` | RPC contract |
 | `src/runtime.ts`, `src/*.js` | Shim, askpass, socket, scanner, policy, redaction |
 | `test/` | Unit tests |
+| `CHANGELOG.md` | Release history |
 
 ## License
 
