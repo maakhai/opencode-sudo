@@ -2,6 +2,7 @@
 import { Show, createSignal, onCleanup, onMount } from "solid-js"
 import { Plugin } from "@opencode/plugin/tui"
 import type { Context } from "@opencode/plugin/tui/context"
+import { displayCommand } from "./command.js"
 import { SudoRpc, type SudoRequest, type SudoStatus } from "./rpc.js"
 
 const DEFAULT_TIMEOUT = 120
@@ -67,6 +68,30 @@ function statusMessage(status: SudoStatus) {
 
 type DialogTheme = ReturnType<Context["theme"]["surface"]>
 
+function CommandBlock(props: {
+  theme: DialogTheme
+  label: string
+  command: string
+}) {
+  return (
+    <box flexDirection="column" marginTop={1}>
+      <text fg={props.theme.text.faint}>{props.label}</text>
+      <box
+        border={["left"]}
+        borderColor={props.theme.text.action.primary.base}
+        backgroundColor={props.theme.background.raised.base}
+        paddingLeft={2}
+        paddingRight={1}
+        marginTop={1}
+      >
+        <text fg={props.theme.text.base} wrapMode="word">
+          <b>{props.command}</b>
+        </text>
+      </box>
+    </box>
+  )
+}
+
 function FooterAction(props: {
   theme: DialogTheme
   keyLabel: string
@@ -130,11 +155,7 @@ function SudoDialog(props: {
   const clearError = () => {
     if (error()) setError(undefined)
   }
-  const contextCommand = props.request.contextCommand.trim()
-  const showContext =
-    contextCommand !== "" &&
-    contextCommand !== props.request.command &&
-    !/^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:\S*\/)?sudo(?:\s|$)/.test(contextCommand)
+  const command = displayCommand(props.request.command, props.request.contextCommand)
 
   const timeout = Number((props.ctx.options as Record<string, unknown>).timeout ?? DEFAULT_TIMEOUT)
   const timer = setTimeout(
@@ -290,26 +311,7 @@ function SudoDialog(props: {
         <b>OpenCode wants to run as root.</b>
       </text>
 
-      <box flexDirection="column" marginTop={1}>
-        <text fg={theme.text.faint}>COMMAND</text>
-        <box
-          border={["left"]}
-          borderColor={theme.text.action.primary.base}
-          backgroundColor={theme.background.raised.base}
-          paddingLeft={2}
-          paddingRight={1}
-          marginTop={1}
-        >
-          <text fg={theme.text.base} wrapMode="word">
-            <b>{props.request.command}</b>
-          </text>
-        </box>
-        <Show when={showContext}>
-          <text fg={theme.text.faint} wrapMode="word" marginTop={1}>
-            via {props.request.contextCommand}
-          </text>
-        </Show>
-      </box>
+      <CommandBlock theme={theme} label="COMMAND" command={command} />
 
       <box flexDirection="column" marginTop={1}>
         <box flexDirection="row" gap={2}>

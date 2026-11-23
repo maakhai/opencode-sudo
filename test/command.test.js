@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {
+  displayCommand,
   formatCommand,
   hasResetFlag,
   parseArgv,
@@ -59,6 +60,14 @@ test("formatCommand quotes arguments with spaces", () => {
     formatCommand(["/usr/bin/sudo", "-A", "sh", "-c", "echo hi"]),
     "sudo sh -c 'echo hi'",
   )
+})
+
+test("displayCommand prefers the full shell command", () => {
+  assert.equal(displayCommand("sudo -v", "sudo -v && sudo lsblk"), "sudo -v && sudo lsblk")
+  assert.equal(displayCommand("sudo apt install x", "make install"), "make install")
+  assert.equal(displayCommand("sudo true", "sudo -k true"), "sudo -k true")
+  assert.equal(displayCommand("sudo true", "  "), "sudo true")
+  assert.equal(displayCommand("sudo true", ""), "sudo true")
 })
 
 test("shellQuote handles empty and quoted strings", () => {

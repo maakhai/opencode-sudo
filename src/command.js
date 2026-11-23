@@ -73,6 +73,19 @@ export function truncate(text, max) {
 }
 
 /**
+ * Prefer the full shell command that triggered sudo, falling back to the sudo
+ * argv when no context is available. The dialog shows only one command block.
+ *
+ * @param {string} command
+ * @param {string} context
+ * @returns {string}
+ */
+export function displayCommand(command, context) {
+  const value = typeof context === "string" ? context.trim() : ""
+  return value || command
+}
+
+/**
  * @param {string[]} argv
  * @param {string} [fallback]
  * @returns {string}
