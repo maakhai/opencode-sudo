@@ -1,6 +1,6 @@
 # opencode-sudo
 
-**Version 0.3.0** · [Changelog](CHANGELOG.md)
+**Version 0.3.1** · [Changelog](CHANGELOG.md)
 
 OpenCode v2 plugin that asks for the `sudo` password in a TUI window, showing
 exactly which command will run. The password goes straight to sudo — it never
@@ -71,8 +71,9 @@ window opens with the exact command. Authorize with `enter` or by clicking
 
 > Ask the agent to run `sudo -k true`.
 
-When sudo runs inside a script, the window also shows the outer command (for
-example `via make install`) below the real sudo command.
+The `COMMAND` block shows the full shell command that triggered sudo when it is
+available, so compound commands such as `sudo -v && sudo lsblk` and scripts
+such as `make install` are displayed completely.
 
 ### Agent discoverability
 
@@ -160,7 +161,9 @@ Manual check:
 
 1. `opencode plugin list` shows `opencode-sudo`.
 2. Ask the agent to run `sudo -k true`; the framed window shows the command and
-   a masked field. Authorize with `enter` or the **Authorize** button.
+   a masked field. Authorize with `enter` or the **Authorize** button. For a
+   compound command such as `sudo -k -v && sudo true`, the `COMMAND` block
+   shows the whole line.
 3. A wrong password shows “incorrect password”; typing clears it. The right
    password runs the command.
 4. `esc` or **Cancel** fails the command with “cancelled by user”.

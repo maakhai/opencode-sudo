@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-23
+
+### Fixed
+
+- Show the full shell command in the `COMMAND` block whenever it is available,
+  including compound commands such as `sudo -v && sudo ...`. Previously the
+  block showed the sudo argv and hid the full command when it started with
+  `sudo`.
+
 ## [0.3.0] - 2026-11-23
 
 ### Added
@@ -36,6 +45,7 @@ project uses [Semantic Versioning](https://semver.org/).
 - Initial release: sudo approval modal, `SUDO_ASKPASS` shim, `on`/`ask`/`off`
   policy, in-memory cache, password validation, and output redaction.
 
+[0.3.1]: https://github.com/maakhai/opencode-sudo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/maakhai/opencode-sudo/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/maakhai/opencode-sudo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/maakhai/opencode-sudo/releases/tag/v0.1.0
