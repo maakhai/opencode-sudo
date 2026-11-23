@@ -1,27 +1,27 @@
 # opencode-sudo
 
-**Version 0.2.0** · [Changelog](CHANGELOG.md)
+**Version 0.3.0** · [Changelog](CHANGELOG.md)
 
 OpenCode v2 plugin that asks for the `sudo` password in a TUI window, showing
 exactly which command will run. The password goes straight to sudo — it never
 enters the chat, the model context, or the plugin logs.
 
 ```text
-╭─────────────────────────────────────────────────────────────╮
-│                                                             │
-│  OpenCode wants to run as root.                             │
-│                                                             │
-│  COMMAND                                                    │
-│  ▌ sudo systemctl restart docker.service                    │
-│                                                             │
-│  Directory  ~/projects/my-project                           │
-│  Session    my-session · user@host                          │
-│                                                             │
-│  [sudo] password for user: ••••••••••▏                      │
-│                                                             │
-│  [enter] Authorize    [esc] Cancel                          │
-│                                                             │
-╰─────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                      │
+│  OpenCode wants to run as root.                                                      │
+│                                                                                      │
+│  COMMAND                                                                             │
+│  ▌ sudo systemctl restart docker.service                                             │
+│                                                                                      │
+│  Directory  ~/projects/my-project                                                    │
+│  Session    my-session · user@host                                                   │
+│                                                                                      │
+│  [sudo] password for user: ••••••••••▏                                               │
+│                                                                                      │
+│  [enter] Authorize    [esc] Cancel                                                   │
+│                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## Requirements
@@ -74,6 +74,13 @@ window opens with the exact command. Authorize with `enter` or by clicking
 When sudo runs inside a script, the window also shows the outer command (for
 example `via make install`) below the real sudo command.
 
+### Agent discoverability
+
+Agents learn that password-protected sudo is available from a compact note
+injected into the model context. By default the note appears until the first
+sudo request in a session, then stops. Set `hint: "always"` to keep it in every
+request, or `false` to disable it.
+
 ### TUI commands
 
 | Command | Effect |
@@ -108,6 +115,7 @@ For headless automation, use a short `NOPASSWD` list in sudoers.
 | `validate` | `true` | validate with `sudo -k -A -v` before releasing |
 | `notify` | `true` | notification/sound when the window opens unfocused |
 | `audit` | `false` | write JSONL to `~/.local/state/opencode-sudo/audit.jsonl` |
+| `hint` | `"once"` | compact sudo note in model context: `"once"`, `"always"`, or `false` |
 
 To set options, replace the string entry with
 `{ "package": "./opencode-sudo", "options": { "policy": "ask" } }`.
@@ -158,6 +166,8 @@ Manual check:
 4. `esc` or **Cancel** fails the command with “cancelled by user”.
    `/sudo lock` forces a new prompt; `/sudo off` denies the next command;
    `opencode run "sudo -n true"` fails fast without a TUI.
+5. In a fresh session, ask `run sudo -k true`; the agent should attempt it
+   without being told that a TUI prompt exists.
 
 ## Layout
 
@@ -167,6 +177,7 @@ Manual check:
 | `src/tui.tsx` | Framed masked modal, clickable actions, polling, `/sudo` |
 | `src/rpc.ts` | RPC contract |
 | `src/runtime.ts`, `src/*.js` | Shim, askpass, socket, scanner, policy, redaction |
+| `src/hint.js` | Compact agent hint selection |
 | `test/` | Unit tests |
 | `CHANGELOG.md` | Release history |
 
