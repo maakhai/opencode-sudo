@@ -275,6 +275,8 @@ function SudoDialog(props: {
   return (
     <box
       flexDirection="column"
+      width="100%"
+      backgroundColor={theme.background.base}
       border={true}
       borderStyle="rounded"
       borderColor={theme.border.base}
@@ -415,7 +417,6 @@ export default Plugin.define({
         }
       }
 
-      ctx.ui.dialog.set({ size: "large", centered: true })
       try {
         ctx.ui.dialog.show(
           () => (
@@ -430,6 +431,8 @@ export default Plugin.define({
             if (!settled) close("cancel", "Sudo authentication cancelled.")
           },
         )
+        // show() resets the size to medium; configure it afterwards.
+        ctx.ui.dialog.set({ size: "large", centered: true })
       } catch (cause) {
         open = false
         settled = true
