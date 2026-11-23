@@ -5,6 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import { Plugin } from "@opencode/plugin"
 import { formatCommand, hasResetFlag, parseArgv, truncate } from "./command.js"
+import { sudoHint } from "./hint.js"
 import { Policies, resolvePolicy, writePolicyFile } from "./policy.js"
 import { redactText, redactValue } from "./redact.js"
 import { emptyRequest, SudoRpc, type SudoRequest, type SudoStatus } from "./rpc.js"
@@ -12,6 +13,7 @@ import { createRuntime, type AskpassRequest, type AskpassResponse, type Runtime 
 import { hasSudoSite } from "./scanner.js"
 
 type Policy = "on" | "ask" | "off"
+type HintMode = "once" | "always" | "off"
 
 interface Config {
   readonly policy: Policy
@@ -20,6 +22,7 @@ interface Config {
   readonly validate: boolean
   readonly notify: boolean
   readonly audit: boolean
+  readonly hint: HintMode
 }
 
 interface Cache {
@@ -48,6 +51,7 @@ interface SharedState {
   cache?: Cache
   validation?: Validation
   readonly pending: Map<string, Pending>
+  sudoSessions?: Set<string>
   lastError: string
 }
 
@@ -79,6 +83,12 @@ function readConfig(raw: Record<string, unknown>): Config {
     validate: raw.validate !== false,
     notify: raw.notify !== false,
     audit: raw.audit === true,
+    hint:
+      raw.hint === false || raw.hint === "off"
+        ? "off"
+        : raw.hint === "always"
+          ? "always"
+          : "once",
   }
 }
 
@@ -218,6 +228,11 @@ function hasTui(shared: Shared) {
   return Date.now() - shared.state.lastTuiSeen < 5000
 }
 
+function sudoSessionsOf(state: SharedState): Set<string> {
+  if (!state.sudoSessions) state.sudoSessions = new Set()
+  return state.sudoSessions
+}
+
 function audit(shared: Shared, entry: Record<string, unknown>) {
   if (!shared.options.audit) return
   const base = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state")
@@ -284,6 +299,7 @@ async function handleAskpass(
   const info = buildRequest(request, argv)
   const id = crypto.randomUUID()
   const pendingRequest: SudoRequest = { ...info, id }
+  if (pendingRequest.sessionID) sudoSessionsOf(state).add(pendingRequest.sessionID)
 
   return await new Promise<AskpassResponse>((resolve) => {
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -367,6 +383,7 @@ async function getShared(options: Config): Promise<Shared> {
     cache: undefined,
     validation: undefined,
     pending: new Map(),
+    sudoSessions: new Set(),
     lastError: "",
   }
   const emits = new Set<(request: SudoRequest) => void>()
@@ -397,6 +414,7 @@ async function releaseShared(shared: Shared) {
   shared.state.pending.clear()
   shared.state.cache = undefined
   shared.state.validation = undefined
+  shared.state.sudoSessions?.clear()
   shared.emits.clear()
   await shared.runtime.close()
 }
@@ -551,11 +569,13 @@ export default Plugin.define({
 
         const policy = resolvePolicy(shared.options.policy)
         if (policy === "off") {
+          sudoSessionsOf(shared.state).add(event.sessionID)
           event.effect = "deny"
           event.message = "sudo is disabled in OpenCode. Use `/sudo on` to enable it."
           return
         }
         if (!hasTui(shared)) {
+          sudoSessionsOf(shared.state).add(event.sessionID)
           event.effect = "deny"
           event.message =
             "sudo requires interactive authentication in the OpenCode TUI. Run OpenCode in a terminal (not `opencode run`), or configure NOPASSWD for specific commands."
@@ -588,6 +608,33 @@ export default Plugin.define({
         if (secret) event.prompt.text = redactText(event.prompt.text, secret)
       })
       disposers.push(() => prompt.dispose())
+
+      const context = await ctx.session.hook("context", (event) => {
+        if (shared.options.hint === "off") return
+        if (!event.tools.shell && !event.tools.bash) return
+
+        const text = sudoHint({
+          mode: shared.options.hint,
+          policy: resolvePolicy(shared.options.policy),
+          tui: hasTui(shared),
+          seen: sudoSessionsOf(shared.state).has(event.sessionID),
+        })
+        if (!text) return
+
+        const existing = event.system.find(
+          (part) => part.metadata?.source === "opencode-sudo",
+        )
+        if (existing) {
+          if (existing.text !== text) existing.text = text
+          return
+        }
+        event.system.push({
+          type: "text",
+          text,
+          metadata: { source: "opencode-sudo" },
+        })
+      })
+      disposers.push(() => context.dispose())
 
       return async () => {
         await Promise.allSettled(disposers.map((dispose) => dispose()))
